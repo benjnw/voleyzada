@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+   <meta charset="utf-8">
+   <meta name="viewport" content="width=device-width,initial-scale=1">
+   <title>Voleyzada - GT v1.1.0</title>
+   <style>
+#loading,.container,.teams{display:flex}.container{margin-left:10px}.item{flex-grow:1}body{color:rgba(0,0,0,.87);margin:0;font-size:.875rem;font-family:Arial,sans-serif;font-weight:400;line-height:1.43;letter-spacing:.01071em;background-color:#fafafa}#clickLabel{font-style:italic;font-size:.9em}#playerRank{width:100%;border-collapse:collapse}#playerRank td,th{border:1px solid #000}#playerRank thead td{background-color:#96ebff}.gamesPlayer{width:40px;background-color:#eee;text-align:center}#playersQtt{float:right;margin-top:6px}#loading{width:100%;height:100%;background:rgba(0,0,0,.8);position:absolute;z-index:1;font-size:3em;color:#fff;justify-content:center;align-items:center}
+   </style>
+</head>
+<body>
+	<div id="loading" style="display:none">Combinando pessoas...</div>
+	<h1 style="margin: 0 10px">Voleyzada - Gerador de Times v1.1.0</h1>
+	<hr style="margin-bottom: 20px"/>
+	<div class="container">
+	   <div class="item" style="padding:0.5%;margin-right: 2%;min-height:300px;border:1px solid #000">
+		  <select id="formation">
+			 <option value="6x6" selected="">6x6</option>
+			 <option value="6x5">6x5</option>
+			 <option value="5x5">5x5</option>
+			 <option value="5x4">5x4</option>
+			 <option value="4x4">4x4</option>
+			 <option value="4x3">4x3</option>
+			 <option value="3x3">3x3</option>
+		  </select>
+		  <button id="buildRandomTeams" style="margin-bottom:5px">Gerar Times</button>
+		  <hr/>
+		  <span id="clickLabel">Clique para adicionar jogadores</span>
+		  <table id="playerRank" style="display:none"class="sortable sortabs">
+			 <thead>
+				<tr>
+				   <td class="tdhead" style="text-align:left;!important">Nome</td>
+				   <td class="tdhead">Fora</td>
+				   <td class="tdhead">Fixo</td>
+				   <td id="dummy2" class="tdhead" onclick="__sortTable(3)">Jogos</td>
+				   <td class="tdhead"></td>
+				</tr>
+			 </thead>
+			 <tbody>
+			 </tbody>
+		  </table>
+		  <button id="addPlayer" style="margin:10px 0 0 3px">+ Jogador</button>
+		  <span id="playersQtt" style="display:none">( 0 )</span>
+	   </div>
+	   <div class="item" style="flex:1 80%;padding-top:0.5%">
+		  <button id="acceptTeams" style="margin-bottom:5px">Aceitar Times?</button>
+		  <div class="teams">
+			 <div class="item">
+				<h2>Time 1</h2>
+				<ul id="team1">
+				</ul>
+			 </div>
+			 <div class="item">
+				<h2>Time 2</h2>
+				<ul id="team2">
+				</ul>
+			 </div>
+		  </div>
+		  <hr/>
+		  <h3>Ficam de fora</h3>
+		  <ul id="outs">
+		  </ul>
+	   </div>
+	</div>
+	<script>	
+	/** ALL GAME TREE & UTILIties **/
+	var UTIL = UTIL || {},
+		MYAPP = MYAPP || {}
+	
+	const space_ids = [
+		'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 
+		'C7', 'C8', 'C9', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'E9', 'F1', 'F2', 'F3', 
+		'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9', 
+		'I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7', 'I8', 'I9', 'J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'J9', 'K1', 'K2', 'K3', 'K4', 'K5', 'K6', 
+		'K7', 'K8', 'K9', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'N1', 'N2', 'N3'
+	]
+	var playersListState = []
+
+
+	MYAPP.init = function() {
+		//UTIL.rebuildHoleCards()
+	}
+	
+	document.getElementById('acceptTeams').addEventListener("click", function(e) {
+		e.preventDefault()
+		
+		document.querySelectorAll('li.playing').forEach(function(el) {
+			const playerKey = el.id.split('-')[0]
+			let gamesPlayed = (__getPlayerState(playerKey, 'games')+1)
+			__setPlayerState(playerKey, 'games', gamesPlayed)			
+			document.querySelector(`#${playerKey} td.gamesPlayer`).innerHTML = gamesPlayed
+		})		
+		document.getElementById('dummy2').click()				
+	})
+	
+	document.getElementById('buildRandomTeams').addEventListener("click", async function(e) {
+		e.preventDefault()
+		
+		document.getElementById('team1').replaceChildren()
+		document.getElementById('team2').replaceChildren()
+		document.getElementById('outs').replaceChildren()
+		
+		let formation = document.getElementById('formation').selectedOptions[0].value.split('x')
+		let sumNeededPlayers = (parseInt(formation[0]) + parseInt(formation[1]))
+		
+		if (playersListState.length < sumNeededPlayers) {
+			alert(`Para esta formação, número mínimo de jogadores: ${sumNeededPlayers}`)
+			return
+		}
+		
+		await toggleLoading()		
+		
+		let mustPlayPlayers = []
+		let mustRestPlayers = []
+		document.querySelectorAll('input[name^=will]:checked').forEach(function(el) { mustPlayPlayers.push(el.value) })
+		document.querySelectorAll('input[name^=wont]:checked').forEach(function(el) { mustRestPlayers.push(el.value) })
+		
+		let playersTeam1 = []		
+		let playersTeam2 = [] 		
+		let playersOut = [] 
+		
+		while(true) {
+		
+			let randomPlayers = []
+		
+			let initialPlayers = Array.from(playersListState.map(x => x.id))
+			for (let j = 0; j < initialPlayers.length; j++) {
+				if (!mustRestPlayers.includes(initialPlayers[j]))
+					randomPlayers.push(initialPlayers[j])
+			}		
+		
+			//caos reorder
+			for (let i = 0; i<20; i++) {
+				randomPlayers = randomPlayers.sort(() => .5 - Math.random())
+			}
+			playersTeam1 = randomPlayers.splice(0, formation[0])
+			
+			for (let i = 0; i<20; i++) {
+				randomPlayers = randomPlayers.sort(() => .5 - Math.random())
+			}
+			//let playersTeam2 = randomPlayers.slice(formation[0], parseInt(formation[1]*2))
+			playersTeam2 = randomPlayers.splice(0, formation[1])		
+			playersOut   = [...randomPlayers, ...mustRestPlayers]
+			
+			if (mustPlayPlayers.length == 0) {
+				break
+			} else {
+				const intersection = playersOut.filter(element => mustPlayPlayers.includes(element))
+				//console.log('inst', intersection)
+				if (intersection.length == 0)
+					break				
+			}			
+		}
+		
+		//console.log(playersTeam1, playersTeam2, playersOut)
+		
+		const ulElementTeam1 = document.getElementById('team1')
+		const ulElementTeam2 = document.getElementById('team2')
+		const ulElementOuts  = document.getElementById('outs')		
+
+		playersTeam1.forEach((value, index) => {		
+			const liElement = document.createElement('li')
+			liElement.id  = `${value}-playing`
+			liElement.className  = 'playing'
+			liElement.textContent = __getPlayerState(value, 'name')
+			ulElementTeam1.appendChild(liElement)
+		})
+		playersTeam2.forEach((value, index) => {		
+			const liElement = document.createElement('li')
+			liElement.id  = `${value}-playing`
+			liElement.className  = 'playing'
+			liElement.textContent = __getPlayerState(value, 'name')
+			ulElementTeam2.appendChild(liElement)
+		})
+		playersOut.forEach((value, index) => {		
+			const liElement = document.createElement('li')
+			liElement.textContent = __getPlayerState(value, 'name')
+			ulElementOuts.appendChild(liElement)
+		})
+		
+		await toggleLoading()
+	
+	})
+	
+	document.getElementById('addPlayer').addEventListener("click", function(e) {
+		e.preventDefault()
+		
+		const single_id = space_ids.splice(0, 1)[0]
+		playersListState.push({
+			id: single_id,
+			//next_out: false,
+			//next_in: false,
+			name: '$',
+			games: 0,
+		})		
+		
+		checkClickLabelMessage()
+			
+		const tableRef = document.getElementById('playerRank').getElementsByTagName('tbody')[0]
+		let newRow = tableRef.insertRow(tableRef.rows.length)
+		newRow.id = single_id
+		newRow.innerHTML = `
+		  <td><input class="renamePlayer" type="text" /></td>
+		  <td><input type="checkbox" name="wontPlayNext[]" value="${single_id}"></td>
+		  <td><input type="checkbox" name="willPlayNext[]" value="${single_id}"></td>
+		  <td class="gamesPlayer">0</td>
+		  <td><button class="removePlayer">Remover</button></td>
+		`
+		
+		let listenerRemovePlayer = document.querySelectorAll(".removePlayer")
+		for (let i = 0; i < listenerRemovePlayer.length; i++) {
+			listenerRemovePlayer[i].addEventListener("click", function(e) {		
+			   const closestRow = this.closest('tr')
+			   __removePlayerState(closestRow.id)	
+			   //alert(closestRow.id)
+			   if (closestRow)
+				closestRow.remove()	
+				
+			   checkClickLabelMessage()	  
+			})
+		}
+		
+		let listenerRenamePlayer = document.querySelectorAll(".renamePlayer")
+		for (let i = 0; i < listenerRenamePlayer.length; i++) {
+			listenerRenamePlayer[i].addEventListener("focusout", function(e) {
+				const closestRow = this.closest('tr')
+			   __setPlayerState(closestRow.id, 'name', e.target.value)
+			})
+		}
+	})
+	
+	function __sortTable(columnIndex) {
+		let table, rows, switching, i, x, y, shouldSwitch
+		table = document.getElementById("playerRank")
+		switching = true
+
+		while (switching) {
+		  switching = false
+		  rows = table.rows
+
+		  for (i = 1; i < rows.length - 1; i++) {
+			shouldSwitch = false
+			x = rows[i].getElementsByTagName("td")[columnIndex]
+			y = rows[i + 1].getElementsByTagName("td")[columnIndex]
+
+			if (parseInt(x.innerHTML) < parseInt(y.innerHTML)) {
+			  shouldSwitch = true
+			  break
+			}
+		  }
+
+		  if (shouldSwitch) {
+			rows[i].parentNode.insertBefore(rows[i + 1], rows[i])
+			switching = true
+		  }
+		}
+	}
+	
+	function checkClickLabelMessage() {	
+		if (playersListState.length > 0) {		
+			document.getElementById('playerRank').style.display = 'block'
+			document.getElementById('clickLabel').style.display = 'none'
+			document.getElementById('playersQtt').innerHTML = `( ${playersListState.length} )`
+			document.getElementById('playersQtt').style.display = 'block'
+		} else {
+			document.getElementById('playerRank').style.display = 'none'
+			document.getElementById('playersQtt').style.display = 'block'
+			document.getElementById('clickLabel').style.display = 'block'
+		}
+	}
+
+	function __removePlayerState(player) {
+		const index = playersListState.findIndex(x => x.id === player)
+		if (index !== -1)
+		  playersListState.splice(index, 1)
+	}
+
+	function __getPlayerState(player, prop) {
+		return playersListState[playersListState.findIndex(x => x.id === player)][prop]
+	}
+
+	function __setPlayerState(player, prop, value, inc = false) {
+		playersListState[playersListState.findIndex(x => x.id === player)][prop] = value
+	}
+	
+	async function toggleLoading() {
+	
+		if (document.getElementById('loading').style.display === "none") {
+			document.getElementById('loading').removeAttribute('style')
+		} else {
+			document.getElementById('loading').style.display = "none"
+		}
+				
+		await sleep(2000)
+	}
+	
+	const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
+	 
+	 document.addEventListener("DOMContentLoaded", function(e) {
+		MYAPP.init()
+	 })
+	 
+	</script>
+	
+</body>
+</html>
